@@ -1,0 +1,30 @@
+<input type="text" id="locationInput" name="location" placeholder="Enter address" required>
+<input type="hidden" name="latitude" id="latitude">
+<input type="hidden" name="longitude" id="longitude">
+<button type="button" onclick="fetchCoordinates()">Get Coordinates</button>
+<script>
+  
+function fetchCoordinates() {
+    const address = document.getElementById('locationInput').value;
+    const apiKey = 'pk.d5058fb639eac5a24a8e45cf0a137d51'; // Replace with your LocationIQ token
+
+    fetch(`https://us1.locationiq.com/v1/search?key=${apiKey}&q=${encodeURIComponent(address)}&format=json`)
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.length > 0) {
+                const lat = data[0].lat;
+                const lon = data[0].lon;
+                document.getElementById('latitude').value = lat;
+                document.getElementById('longitude').value = lon;
+                alert(`Coordinates added:\nLatitude: ${lat}\nLongitude: ${lon}`);
+            } else {
+                alert('Location not found. Try a more specific address.');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching coordinates:', error);
+            alert('Failed to fetch coordinates.');
+        });
+}
+</script>
+
