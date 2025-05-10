@@ -1,7 +1,7 @@
 <?php
 $host = "localhost";
 $user = "placeslk_surplusadmin";  // Change if needed
-$pass = "sgf6R%,$TQwY";
+$pass = "sgf6RTQwYAcxcc";
 $dbname = "placeslk_surplus";
 
 $conn = new mysqli($host, $user, $pass, $dbname);
