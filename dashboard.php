@@ -212,6 +212,8 @@ $recentActivities = array_slice($recentActivities, 0, 10);
                 <li class="nav-item"><a class="nav-link active" href="dashboard.php"><i class="bi bi-house-door-fill"></i> Home</a></li>
                 <?php if($_SESSION['role'] == 'poster' || $_SESSION['role'] == 'admin'){?>
                 <li class="nav-item"><a class="nav-link" href="Updatepostfood.php"><i class="bi bi-plus-circle-fill"></i> Add Food</a></li>
+              <?php } ?> 
+              <?php if( $_SESSION['role'] == 'admin'){?>
                 <li class="nav-item"><a class="nav-link" href="ManageUsers.php"><i class="bi bi-plus-circle-fill"></i> Manage Users</a></li>
               <?php } ?> 
                 <li class="nav-item"><a class="nav-link" href="View.php"><i class="bi bi-eye-fill"></i> View Food</a></li>
