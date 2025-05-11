@@ -1,10 +1,11 @@
 <?php
+session_start();
 require_once 'db.php';
 
-// if( $_SESSION['role']!= 'admin'){
-//     header("Location: index.php");
-//     exit();
-// }
+if( $_SESSION['role']!= 'admin'){
+    header("Location: index.php");
+    exit();
+}
 
 
 
