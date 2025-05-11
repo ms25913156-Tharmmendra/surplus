@@ -13,19 +13,167 @@ $filter_options = [
     'food_types' => []
 ];
 
-// Fetch Locations
 $sql_locations = "SELECT DISTINCT location FROM postfood WHERE status = 'Available' ORDER BY location";
 $result_locations = $conn->query($sql_locations);
 while($row = $result_locations->fetch_assoc()) {
     $filter_options['locations'][] = $row['location'];
 }
 
-// Fetch Food Types
 $sql_food_types = "SELECT DISTINCT food_name FROM postfood WHERE status = 'Available' ORDER BY food_name";
 $result_food_types = $conn->query($sql_food_types);
 while($row = $result_food_types->fetch_assoc()) {
     $filter_options['food_types'][] = $row['food_name'];
 }
+
+
+
+
+function getReservedFoodStats($conn) {
+    $stats = [];
+    
+    $sql = "SELECT COUNT(*) as total FROM reservedfood";
+    $result = $conn->query($sql);
+    $stats['totalReserved'] = $result->fetch_assoc()['total'];
+    
+    $sql = "SELECT FoodName, COUNT(*) as count FROM reservedfood GROUP BY FoodName ORDER BY count DESC";
+    $result = $conn->query($sql);
+    $stats['foodTypes'] = [];
+    while($row = $result->fetch_assoc()) {
+        $stats['foodTypes'][$row['FoodName']] = $row['count'];
+    }
+    
+    $sql = "SELECT ReserverName, COUNT(*) as count FROM reservedfood GROUP BY ReserverName ORDER BY count DESC";
+    $result = $conn->query($sql);
+    $stats['reservers'] = [];
+    while($row = $result->fetch_assoc()) {
+        $stats['reservers'][$row['ReserverName']] = $row['count'];
+    }
+    
+    $sql = "SELECT DATE(ReservedDate) as date, COUNT(*) as count FROM reservedfood 
+            WHERE ReservedDate >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            GROUP BY DATE(ReservedDate) ORDER BY date";
+    $result = $conn->query($sql);
+    $stats['dailyReservations'] = [];
+    while($row = $result->fetch_assoc()) {
+        $stats['dailyReservations'][$row['date']] = $row['count'];
+    }
+    
+    return $stats;
+}
+
+function getPostedFoodStats($conn) {
+    $stats = [];
+    
+    $sql = "SELECT COUNT(*) as total FROM postfood";
+    $result = $conn->query($sql);
+    $stats['totalPosted'] = $result->fetch_assoc()['total'];
+    
+    $sql = "SELECT food_name, COUNT(*) as count FROM postfood GROUP BY food_name ORDER BY count DESC";
+    $result = $conn->query($sql);
+    $stats['foodTypes'] = [];
+    while($row = $result->fetch_assoc()) {
+        $stats['foodTypes'][$row['food_name']] = $row['count'];
+    }
+    
+    $sql = "SELECT location, COUNT(*) as count FROM postfood GROUP BY location ORDER BY count DESC";
+    $result = $conn->query($sql);
+    $stats['locations'] = [];
+    while($row = $result->fetch_assoc()) {
+        $stats['locations'][$row['location']] = $row['count'];
+    }
+    
+    $sql = "SELECT DATE(pickuptime) as date, COUNT(*) as count FROM postfood 
+            WHERE pickuptime >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            GROUP BY DATE(pickuptime) ORDER BY date";
+    $result = $conn->query($sql);
+    $stats['dailyPosts'] = [];
+    while($row = $result->fetch_assoc()) {
+        $stats['dailyPosts'][$row['date']] = $row['count'];
+    }
+    
+    return $stats;
+}
+
+function getUserStats($conn) {
+    $stats = [];
+    
+    $sql = "SELECT COUNT(*) as total FROM users";
+    $result = $conn->query($sql);
+    $stats['totalUsers'] = $result->fetch_assoc()['total'];
+    
+    $sql = "SELECT role, COUNT(*) as count FROM users GROUP BY role";
+    $result = $conn->query($sql);
+    $stats['roles'] = [];
+    while($row = $result->fetch_assoc()) {
+        $stats['roles'][$row['role']] = $row['count'];
+    }
+    
+    $sql = "SELECT location, COUNT(*) as count FROM users GROUP BY location";
+    $result = $conn->query($sql);
+    $stats['locations'] = [];
+    while($row = $result->fetch_assoc()) {
+        $stats['locations'][$row['location']] = $row['count'];
+    }
+    
+    return $stats;
+}
+
+function getFeedbackStats($conn) {
+    $stats = [];
+    
+    $sql = "SELECT COUNT(*) as total FROM feedback";
+    $result = $conn->query($sql);
+    $stats['totalFeedback'] = $result->fetch_assoc()['total'];
+    
+    $sql = "SELECT AVG(Rating) as avgRating FROM feedback";
+    $result = $conn->query($sql);
+    $stats['avgRating'] = round($result->fetch_assoc()['avgRating'], 1);
+    
+    $sql = "SELECT Rating, COUNT(*) as count FROM feedback GROUP BY Rating ORDER BY Rating DESC";
+    $result = $conn->query($sql);
+    $stats['ratings'] = [];
+    while($row = $result->fetch_assoc()) {
+        $stats['ratings'][$row['Rating']] = $row['count'];
+    }
+    
+    $sql = "SELECT DATE(Date) as date, COUNT(*) as count FROM feedback 
+            WHERE Date >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            GROUP BY DATE(Date) ORDER BY date";
+    $result = $conn->query($sql);
+    $stats['dailyFeedback'] = [];
+    while($row = $result->fetch_assoc()) {
+        $stats['dailyFeedback'][$row['date']] = $row['count'];
+    }
+    
+    return $stats;
+}
+
+$reservedFoodStats = getReservedFoodStats($conn);
+$postedFoodStats = getPostedFoodStats($conn);
+$userStats = getUserStats($conn);
+$feedbackStats = getFeedbackStats($conn);
+
+$recentActivities = [];
+
+$sql = "SELECT 'Reserved' as type, FoodName, ReserverName, ReservedDate as date FROM reservedfood ORDER BY ReservedDate DESC LIMIT 5";
+$result = $conn->query($sql);
+while($row = $result->fetch_assoc()) {
+    $recentActivities[] = $row;
+}
+
+$sql = "SELECT 'Posted' as type, food_name, Contactinformation, pickuptime as date FROM postfood ORDER BY pickuptime DESC LIMIT 5";
+$result = $conn->query($sql);
+while($row = $result->fetch_assoc()) {
+    $recentActivities[] = $row;
+}
+
+usort($recentActivities, function($a, $b) {
+    return strtotime($b['date']) - strtotime($a['date']);
+});
+
+$recentActivities = array_slice($recentActivities, 0, 10);
+
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -39,6 +187,7 @@ while($row = $result_food_types->fetch_assoc()) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/responsive/2.4.1/css/responsive.bootstrap5.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link href="css/custom.css" rel="stylesheet">
 </head>
 <body>
@@ -125,6 +274,205 @@ while($row = $result_food_types->fetch_assoc()) {
         </div>
     </div>
 
+    <?php if( $_SESSION['role'] == 'admin'){?>
+
+        <div class="row">
+            
+
+            <!-- Main Content -->
+            <div class="col-lg-10 col-md-9 p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="h5">Dashboard Overview</h1>
+                    <div class="text-muted" id="current-datetime"></div>
+                </div>
+                
+                <!-- Overview Cards -->
+                <div class="row g-4 mb-4">
+                    <div class="col-xl-3 col-md-6">
+                        <div class="card bg-success text-white h-100">
+                            <div class="card-body stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-share-alt"></i>
+                                </div>
+                                <div class="stat-value"><?php echo $postedFoodStats['totalPosted']; ?></div>
+                                <div class="stat-label text-white-50">Total Food Posted</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6">
+                        <div class="card bg-primary text-white h-100">
+                            <div class="card-body stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-hand-holding-heart"></i>
+                                </div>
+                                <div class="stat-value"><?php echo $reservedFoodStats['totalReserved']; ?></div>
+                                <div class="stat-label text-white-50">Total Food Reserved</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6">
+                        <div class="card bg-info text-white h-100">
+                            <div class="card-body stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div class="stat-value"><?php echo $userStats['totalUsers']; ?></div>
+                                <div class="stat-label text-white-50">Registered Users</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6">
+                        <div class="card bg-warning text-white h-100">
+                            <div class="card-body stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-star"></i>
+                                </div>
+                                <div class="stat-value"><?php echo $feedbackStats['avgRating']; ?></div>
+                                <div class="stat-label text-white-50">Average Feedback Rating</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6">
+                        <a href="postfoodstatus.php"><div class="card  text-white h-100" style="background-color: #6c757d;">
+                            <div class="card-body stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-file"></i>
+                                </div>
+                                <div class="stat-value"></div>
+                                <div class="stat-label text-white-50">Post Food Status</div>
+                            </div>
+                        </div></a>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6">
+                        <a href="reservedfoodstatus.php"><div class="card  text-white h-100" style="background-color:rgb(255, 75, 243);">
+                            <div class="card-body stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-heart"></i>
+                                </div>
+                                <div class="stat-value"></div>
+                                <div class="stat-label text-white-50">Reserved Food status</div>
+                            </div>
+                        </div></a>
+                    </div>
+                </div>
+                </div>
+
+                 <!-- Charts Row -->
+                 <div class="row g-4 mb-4">
+                   
+                
+                <!-- Data Tables and Activities Row -->
+                <div class="row g-4">
+                    <!-- Recent Food Posts Table -->
+                    <div class="col-lg-8">
+                        <div class="card h-100">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">Recently Posted Food</h5>
+                                <div>
+                                    <button class="btn btn-sm btn-primary"><i class="fas fa-plus me-1"></i> New Post</button>
+                                    <button class="btn btn-sm btn-outline-secondary ms-2"><i class="fas fa-download me-1"></i> Export</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table custom-table table-hover mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Food</th>
+                                                <th>Quantity</th>
+                                                <th>Location</th>
+                                                <th>Pickup Time</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php
+                                            // This would be filled with actual data in a real implementation
+                                            $recentPosts = [
+                                                ['name' => 'Rice & Curry', 'qty' => 10, 'location' => 'Colombo', 'time' => '2025-04-22 00:00:00', 'status' => 'Claimed'],
+                                                ['name' => 'Pittu', 'qty' => 5, 'location' => 'Jaffna', 'time' => '2025-03-17 17:06:00', 'status' => 'Claimed'],
+                                                ['name' => 'Bread', 'qty' => 10, 'location' => 'Mannar', 'time' => '2025-03-20 17:08:00', 'status' => 'Claimed'],
+                                                ['name' => 'Rice', 'qty' => 13, 'location' => 'Vavuniya', 'time' => '2025-03-20 17:10:00', 'status' => 'Claimed'],
+                                                ['name' => 'Idiyaapam', 'qty' => 10, 'location' => 'Mathura', 'time' => '2025-03-20 16:25:00', 'status' => 'Claimed'],
+                                            ];
+                                            
+                                            foreach($recentPosts as $post):
+                                            $statusClass = strtolower($post['status']) == 'claimed' ? 'bg-success' : 'bg-warning';
+                                            ?>
+                                            <tr>
+                                                <td><strong><?php echo $post['name']; ?></strong></td>
+                                                <td><?php echo $post['qty']; ?></td>
+                                                <td><?php echo $post['location']; ?></td>
+                                                <td><?php echo date('M d, H:i', strtotime($post['time'])); ?></td>
+                                                <td><span class="badge <?php echo $statusClass; ?> badge-status"><?php echo $post['status']; ?></span></td>
+                                              
+                                            </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-white">
+                                <nav>
+                                    <ul class="pagination justify-content-center mb-0">
+                                        <li class="page-item disabled"><a class="page-link" href="#">Previous</a></li>
+                                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                                        <li class="page-item"><a class="page-link" href="#">2</a></li>
+                                        <li class="page-item"><a class="page-link" href="#">3</a></li>
+                                        <li class="page-item"><a class="page-link" href="#">Next</a></li>
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Activities -->
+                    <div class="col-lg-4">
+                        <div class="card h-100">
+                            <div class="card-header bg-white">
+                                <h5 class="card-title mb-0">Recent Activities</h5>
+                            </div>
+                            <div class="card-body p-4" style="height: 200px;overflow-y: scroll;">
+                                <div class="timeline">
+                                    <?php foreach($recentActivities as $index => $activity): 
+                                        $activityClass = strtolower($activity['type']) == 'reserved' ? 'reserved' : 'posted';
+                                        $icon = strtolower($activity['type']) == 'reserved' ? 'hand-holding-heart' : 'share-alt';
+                                    ?>
+                                    <div class="activity-item <?php echo $activityClass; ?>">
+                                        <div class="d-flex mb-3">
+                                            <div class="me-3">
+                                                <span class="badge rounded-circle bg-light p-2">
+                                                    <i class="fas fa-<?php echo $icon; ?> text-<?php echo $activityClass == 'reserved' ? 'info' : 'success'; ?>"></i>
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-1"><?php echo $activity['FoodName'] ?? $activity['food_name']; ?></h6>
+                                                <p class="mb-0 small text-muted">
+                                                    <?php echo $activity['type']; ?> by <?php echo $activity['ReserverName'] ?? $activity['Contactinformation']; ?>
+                                                </p>
+                                                <small class="text-muted">
+                                                    <?php 
+                                                        $timestamp = strtotime($activity['date']);
+                                                        echo date('M d, H:i', $timestamp); 
+                                                    ?>
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-white text-center">
+                                <a href="#" class="btn btn-sm btn-outline-primary">View All Activities</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                
+<?php } ?>
     <!-- Food Table -->
     <div class="table-responsive mt-4">
         <table id="foodTable" class="table table-striped table-bordered">
