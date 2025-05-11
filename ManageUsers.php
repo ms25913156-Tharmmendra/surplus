@@ -1,5 +1,13 @@
 <?php
 require_once 'db.php';
+
+if( $_SESSION['role']!= 'admin'){
+    header("Location: index.php");
+    exit();
+}
+
+
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (isset($_POST['action']) && isset($_POST['userId'])) {
         $userId = intval($_POST['userId']);
